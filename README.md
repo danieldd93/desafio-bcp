@@ -1,8 +1,14 @@
 # Asistente de Reestructuración Financiera
 
 Web app (FastAPI) que **procesa datasets por cliente**, **simula escenarios de pago de deuda** (pago mínimo, plan optimizado y consolidación si aplica), **calcula ahorro estimado** y **genera un informe explicativo en lenguaje natural** usando Azure OpenAI.
+> Nota: el deployment/modelo se administra en **Azure AI Foundry**, y la app consume el endpoint vía **Azure OpenAI**.
 
 Incluye una **UI web estática** (HTML/CSS/JS) servida por el mismo FastAPI en /, por lo que **frontend y backend corren en el mismo host/puerto**.
+
+## Demo (Azure)
+
+- URL: https://desafio-bcp-app-ebb2hpbfawb4gxfq.canadacentral-01.azurewebsites.net/
+- La demo ya incluye datasets de ejemplo cargados desde `./data` al iniciar (no es obligatorio subir archivos para probar).
 
 ---
 
@@ -296,10 +302,13 @@ Para evitar errores tipo `BankOffer(**o) argument after ** must be a mapping`, l
 
 ---
 
-## Evidencia / demo
+## Evidencia
 
-### Demo (Azure)
-- URL: `https://desafio-bcp-app-ebb2hpbfawb4gxfq.canadacentral-01.azurewebsites.net/`
+### Probar rápido (sin instalar nada)
+1) Abrir la demo (ver sección **Demo (Azure)** arriba)
+2) Seleccionar cliente
+3) “Ver resumen de escenarios”
+4) “Generar informe”
 
 ### Generar informe para al menos 3 clientes
 1) `GET /customers` → obtienes `CU-001`, `CU-002`, `CU-003` (ejemplo)
