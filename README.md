@@ -2,6 +2,8 @@
 
 Web app (FastAPI) que **procesa datasets por cliente**, **simula escenarios de pago de deuda** (pago mínimo, plan optimizado y consolidación si aplica), **calcula ahorro estimado** y **genera un informe explicativo en lenguaje natural** usando Azure OpenAI.
 
+Incluye una **UI web estática** (HTML/CSS/JS) servida por el mismo FastAPI en /, por lo que **frontend y backend corren en el mismo host/puerto**.
+
 ---
 
 ## Requerimientos del reto cubiertos
@@ -20,8 +22,8 @@ Web app (FastAPI) que **procesa datasets por cliente**, **simula escenarios de p
 
 ## Arquitectura / flujo (alto nivel)
 
-1. **Carga inicial (startup):** la app carga datasets desde `./data/` (modo demo out-of-the-box).
-2. **Carga por UI / API (opcional):** `POST /datasets/upload` permite subir CSV/JSON y **reemplaza los datasets en memoria**.
+1. **Arranque:** la app carga datasets desde `./data/` y sirve la UI desde /.
+2. **Carga opcional por UI / API:** `POST /datasets/upload` permite subir CSV/JSON y **reemplaza los datasets en memoria**.
 3. **Consolidación por cliente:** se agrupa información por `customer_id`.
 4. **Cálculo de escenarios:** se simulan escenarios y se calculan métricas (meses, intereses, ahorro vs mínimo).
 5. **Reporte IA:** se construye un prompt con el resumen y se llama a Azure OpenAI.
@@ -131,7 +133,7 @@ Genera y devuelve el informe explicativo con IA.
 - `bank_offers.json`
 
 ### Convención de nombres (para la UI)
-La UI mapea archivos por nombre: busca que el **filename contenga** estas claves:
+La UI identifica cada archivo por el nombre: toma el filename en minúsculas y valida si contiene las claves requeridas (por ejemplo: payments_history, bank_offers). Si algún archivo no coincide, la UI marca faltantes y no envía el POST /datasets/upload.
 
 - `loans`
 - `cards`
@@ -211,14 +213,16 @@ export AZURE_OPENAI_API_VERSION="2025-03-01-preview"
 ```bash
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+> Nota: este comando levanta **API + UI** (no necesitas correr un servidor aparte para el frontend).
 
 Abrir en navegador:
 - UI / Home: `http://127.0.0.1:8000/`
 
 ### 5) Flujo de uso (local)
-Opción A (demo out-of-the-box):
+Opción A:
 1. Inicia la app.
-2. Usa `GET /customers` para listar clientes (data cargada desde `/data` al arranque).
+2. Abre `http://127.0.0.1:8000/` y selecciona un cliente (usa datasets cargados desde ./data).
+3. Alternativamente, usa GET /customers para listar clientes.
 
 Opción B (subir datasets por UI / API):
 1. En la UI, sube los 6 archivos (5 CSV + 1 JSON `bank_offers`).
