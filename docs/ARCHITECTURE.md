@@ -1,139 +1,99 @@
-# Asistente de Reestructuración Financiera
+# Arquitectura
 
-Web app (FastAPI) que **procesa datasets por cliente**, **simula escenarios de pago de deuda** (pago mínimo, plan optimizado y consolidación si aplica), **calcula ahorro estimado** y **genera un informe explicativo en lenguaje natural** usando Azure OpenAI.
+Este documento describe la arquitectura y el flujo de la solución **Asistente de Reestructuración Financiera**.
 
-Incluye una **UI web estática** (HTML/CSS/JS) servida por el mismo FastAPI en /, por lo que **frontend y backend corren en el mismo host/puerto**.
+## Resumen
 
----
+La aplicación es una **web app en FastAPI** que:
 
-## Requerimientos del reto cubiertos
-
-- [x] Procesa archivos entregados y consolida la información por cliente.
-- [x] Genera al menos 3 escenarios por cliente:
-  - **Pago mínimo**
-  - **Plan optimizado** (prioriza mayor tasa y mora, ajustado a flujo de caja)
-  - **Consolidación (si aplica)** usando `bank_offers.json`
-- [x] Calcula el **ahorro estimado** por escenario (vs pago mínimo).
-- [x] Genera **informe explicativo** en lenguaje natural por cliente (IA generativa).
-- [x] Implementado en **Python** (FastAPI).
-- [x] (Opcional) **Despliegue en Azure App Service** con demo web.
+- Carga datasets (por defecto desde `./data/`) al iniciar.
+- Expone endpoints para listar clientes, calcular escenarios y generar reporte.
+- Sirve una **UI estática** (HTML/CSS/JS) desde el mismo FastAPI en `/`, por lo que **frontend y backend corren en el mismo host/puerto**.
+- (Opcional) Permite subir datasets vía `POST /datasets/upload` para reemplazar la data **en memoria** sin persistir en disco.
+- Genera un informe en lenguaje natural usando **Azure OpenAI (AI Foundry / Azure OpenAI)**.
 
 ---
 
-## Arquitectura / flujo (alto nivel)
+## Componentes principales
 
-1. **Arranque:** la app carga datasets desde `./data/` y sirve la UI desde /.
-2. **Carga opcional por UI / API:** `POST /datasets/upload` permite subir CSV/JSON y **reemplaza los datasets en memoria**.
-3. **Consolidación por cliente:** se agrupa información por `customer_id`.
-4. **Cálculo de escenarios:** se simulan escenarios y se calculan métricas (meses, intereses, ahorro vs mínimo).
-5. **Reporte IA:** se construye un prompt con el resumen y se llama a Azure OpenAI.
-6. **Respuesta:** la API devuelve JSON con overview y/o `report_text` para el cliente.
+## Estructura del proyecto (carpetas)
 
-> Nota: el endpoint de upload **no guarda archivos en disco**; el procesamiento ocurre en memoria.
+El repo está organizado así (resumen):
 
----
+- `app/`
+  - `main.py`: punto de entrada de FastAPI.
+  - `static/`: UI web (HTML/CSS/JS) servida por FastAPI.
+  - `models/`: modelos/DTOs usados en requests/responses y parsing.
+  - `services/`: lógica de negocio (cálculo de escenarios, consolidación, generación de reporte).
+  - `utils/`: utilidades compartidas.
+- `data/`: datasets por defecto para modo demo (carga automática al iniciar).
+- `docs/`: documentación del proyecto (architecture, api, decisions, etc.).
+- `requirements.txt`: dependencias Python.
+- `README.md`: guía rápida para correr local y demo en Azure.
 
-## Endpoints (API)
+### 1) API (FastAPI)
+Responsable de:
+- Exponer endpoints HTTP.
+- Orquestar el flujo: consolidación → simulación → respuesta.
+- Servir la UI estática como `StaticFiles`.
 
-### `POST /datasets/upload`
-Sube datasets para **reemplazar** la data cargada en memoria (5 CSV + 1 JSON).
+### 2) UI (HTML/CSS/JS)
+Responsable de:
+- Permitir (opcionalmente) subir datasets.
+- Listar clientes desde `GET /customers`.
+- Consultar overview de escenarios y mostrarlo en tabla.
+- Solicitar la generación del reporte por cliente.
 
-- **Content-Type:** `multipart/form-data`
-- **Fields requeridos:**
-  - `loans` (CSV)
-  - `cards` (CSV)
-  - `payments_history` (CSV)
-  - `credit_score_history` (CSV)
-  - `customer_cashflow` (CSV)
-  - `bank_offers` (JSON)
+> La UI consume la API por rutas relativas (mismo dominio/puerto). Por eso en producción y local se comporta igual.
 
-**Respuesta (ejemplo):**
-```json
-{
-  "status": "ok",
-  "message": "Datasets cargados y reemplazados correctamente.",
-  "rows_per_dataset": {
-    "loans": 100,
-    "cards": 200,
-    "payments_history": 800,
-    "credit_score_history": 24,
-    "customer_cashflow": 12,
-    "bank_offers": 10
-  }
-}
-```
+### 3) Capa de datos en memoria (App State)
+- En startup se carga `./data/` y se mantiene un objeto en memoria (por ejemplo `app.state.data`).
+- Cuando se usa `POST /datasets/upload`, se parsean los archivos subidos y se **reemplaza** la data en memoria.
 
----
+**Importante:** al reiniciar el proceso (local o App Service), se pierde la memoria y se vuelve a cargar `./data/`.
 
-### `GET /customers`
-Devuelve lista de `customer_id` disponibles.
+### 4) Motor de escenarios
+Responsable de simular 3 escenarios por cliente:
+- `minimum_payment`
+- `optimized_plan`
+- `consolidation` (si aplica)
 
-**Respuesta (ejemplo):**
-```json
-["CU-001", "CU-002", "CU-003"]
-```
+El resultado estándar incluye métricas como:
+- `total_months`
+- `total_interest_paid`
+- `interest_savings_vs_minimum`
+- `months_saved_vs_minimum`
 
----
-
-### `GET /customers/{customer_id}/scenarios/overview`
-Devuelve el resumen comparativo de escenarios del cliente (meses, intereses, ahorro vs mínimo, etc.).
-
-**Respuesta (ejemplo simplificado):**
-```json
-{
-  "customer_id": "CU-001",
-  "scenarios": [
-    {
-      "scenario_type": "minimum_payment",
-      "total_months": 266,
-      "total_interest_paid": 19055.5,
-      "interest_savings_vs_minimum": 0.0,
-      "months_saved_vs_minimum": 0
-    },
-    {
-      "scenario_type": "optimized_plan",
-      "total_months": 16,
-      "total_interest_paid": 4545.53,
-      "interest_savings_vs_minimum": 14509.97,
-      "months_saved_vs_minimum": 250
-    },
-    {
-      "scenario_type": "consolidation",
-      "total_months": 24,
-      "total_interest_paid": 4737.03,
-      "interest_savings_vs_minimum": 14318.47,
-      "months_saved_vs_minimum": 242
-    }
-  ]
-}
-```
+### 5) Generación de informe (LLM)
+- Se construye un prompt con el resumen del cliente + resultados de escenarios.
+- Se llama a Azure OpenAI con variables de entorno.
+- Se devuelve `report_text` listo para mostrar en la UI o consumir por API.
 
 ---
 
-### `GET /customers/{customer_id}/report`
-Genera y devuelve el informe explicativo con IA.
+## Flujo end-to-end
 
-**Respuesta (ejemplo):**
-```json
-{
-  "customer_id": "CU-001",
-  "language": "es",
-  "report_text": "..."
-}
-```
+### Flujo A (sin subir datasets: demo out-of-the-box)
+1. El usuario inicia la app (`uvicorn app.main:app ...`).
+2. En startup, la app carga datasets desde `./data/`.
+3. La UI abre `/` y ejecuta `GET /customers`.
+4. El usuario selecciona un cliente.
+5. La UI llama `GET /customers/{id}/scenarios/overview`.
+6. La UI llama `GET /customers/{id}/report` para generar el informe con IA.
 
-## Formato de entrada (datasets)
+### Flujo B (subiendo datasets por UI/API)
+1. El usuario inicia la app.
+2. En la UI (sección “Carga de datasets”) selecciona 6 archivos.
+3. La UI valida nombres y llama `POST /datasets/upload` con `multipart/form-data`.
+4. El backend parsea archivos y reemplaza data en memoria.
+5. La UI refresca clientes (`GET /customers`) y se usa el mismo flujo de escenarios y reporte.
 
-### Archivos requeridos
-- `loans.csv`
-- `cards.csv`
-- `payments_history.csv`
-- `credit_score_history.csv`
-- `customer_cashflow.csv`
-- `bank_offers.json`
+---
 
-### Convención de nombres (para la UI)
-La UI identifica cada archivo por el nombre: toma el filename en minúsculas y valida si contiene las claves requeridas (por ejemplo: payments_history, bank_offers). Si algún archivo no coincide, la UI marca faltantes y no envía el POST /datasets/upload.
+## Formatos y reglas
+
+### Identificación de archivos en UI (upload)
+La UI construye un `fileMap` buscando que el nombre del archivo (en minúsculas) contenga estas claves:
 
 - `loans`
 - `cards`
@@ -142,210 +102,50 @@ La UI identifica cada archivo por el nombre: toma el filename en minúsculas y v
 - `customer_cashflow`
 - `bank_offers`
 
-Ejemplos válidos:
-- `loans.csv`
-- `cards_2025.csv`
-- `payments_history_v2.csv`
-- `credit_score_history.csv`
-- `customer_cashflow.csv`
-- `bank_offers.json`
+Si falta alguno, no envía el POST y marca faltantes.
 
-### Nota especial: `bank_offers.json`
-- Debe ser un **JSON válido** (no CSV).
-- Recomendado: que sea una **lista (array) de objetos** con los campos esperados por el modelo `BankOffer` (cada elemento representa una oferta).
+### Persistencia
+- No se persisten uploads a disco (por diseño).
+- `./data/` funciona como dataset base de demo.
+- En App Service, la memoria no es persistente entre reinicios.
 
-Ejemplo (estructura general):
-```json
-[
-  {
-    "offer_id": "OF-CONSO-24M",
-    "product_types_eligible": ["card", "personal"],
-    "max_consolidated_balance": 50000,
-    "new_rate_pct": 19.9,
-    "max_term_months": 24,
-    "conditions": "No mora >30 días al momento de la solicitud"
-  },
-  {
-    "offer_id": "OF-CONSO-36M",
-    "product_types_eligible": ["card", "personal", "micro"],
-    "max_consolidated_balance": 75000,
-    "new_rate_pct": 17.5,
-    "max_term_months": 36,
-    "conditions": "Score > 650 y sin mora activa"
-  }
-]
-```
+---
 
-> Si el JSON no viene como lista de objetos (por ejemplo, viene como strings o anidado), la simulación de consolidación puede fallar al parsear (`BankOffer(**o)` requiere que `o` sea un objeto/dict).
+## Consideraciones de despliegue
 
-## Cómo correr local
+### Un solo proceso (API + UI)
+La UI es estática y es servida por FastAPI, por lo que el despliegue es un único servicio.
 
-### 1) Requisitos
-- Python 3.11+ (recomendado)
-- pip
-- (Opcional) Git
+- Local:
+  - `uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`
 
-### 2) Crear entorno e instalar dependencias
-```bash
-python -m venv venv
-source venv/bin/activate   # macOS/Linux
-# venv\Scripts\activate    # Windows
-
-pip install -r requirements.txt
-```
-
-> Si usas el endpoint de upload con `multipart/form-data`, asegúrate de tener:
-```bash
-pip install python-multipart
-```
-
-### 3) Variables de entorno (Azure OpenAI)
-Crea un archivo `.env` (local) o exporta variables en tu terminal:
-
-```bash
-export AZURE_OPENAI_ENDPOINT="https://<tu-recurso>.cognitiveservices.azure.com/"
-export AZURE_OPENAI_API_KEY="<tu_api_key>"
-export AZURE_OPENAI_DEPLOYMENT="gpt-5-mini-desafio"
-export AZURE_OPENAI_API_VERSION="2025-03-01-preview"
-```
-
-### 4) Ejecutar la app
-```bash
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-> Nota: este comando levanta **API + UI** (no necesitas correr un servidor aparte para el frontend).
-
-Abrir en navegador:
-- UI / Home: `http://127.0.0.1:8000/`
-
-### 5) Flujo de uso (local)
-Opción A:
-1. Inicia la app.
-2. Abre `http://127.0.0.1:8000/` y selecciona un cliente (usa datasets cargados desde ./data).
-3. Alternativamente, usa GET /customers para listar clientes.
-
-Opción B (subir datasets por UI / API):
-1. En la UI, sube los 6 archivos (5 CSV + 1 JSON `bank_offers`).
-2. Click **“Subir y procesar”** (POST `/datasets/upload`).
-3. Luego: **“Ver resumen”** y **“Generar informe”** por cliente.
-
-## Despliegue en Azure App Service (opcional)
-
-Este repo puede desplegarse como **Web App Linux (Python)** en Azure App Service.
-
-### App Settings necesarios (Azure Portal → Configuration)
-Configura estas variables de entorno:
-
-- `AZURE_OPENAI_ENDPOINT` = `https://<tu-recurso>.cognitiveservices.azure.com/`
-- `AZURE_OPENAI_API_KEY` = `<tu_key>`
-- `AZURE_OPENAI_DEPLOYMENT` = `<tu_deployment>`
-- `AZURE_OPENAI_API_VERSION` = `2025-03-01-preview`
-
-Recomendadas para App Service:
-- `SCM_DO_BUILD_DURING_DEPLOYMENT` = `1` (para que instale requirements al desplegar)
-- `WEBSITES_PORT` = `8000` (si tu comando escucha en 8000)
-
-### Startup Command (muy importante)
-En Azure Portal → Configuration → General settings → **Startup Command**:
-
-- Opción A (Gunicorn + UvicornWorker):
+- Azure App Service (recomendado):
   - `gunicorn -k uvicorn.workers.UvicornWorker app.main:app --bind=0.0.0.0:8000`
 
-> Si el sitio “no levanta en 10 mins”, 8 de cada 10 veces es por Startup Command / puerto / dependencias.
+---
 
-### Deploy (Zip Deploy)
-Desde tu máquina (Azure CLI):
+## Seguridad
 
-1) Crear el zip (incluye `app/`, `data/`, `requirements.txt`, etc.)
-2) Desplegar:
-- `az webapp deploy --resource-group <RG> --name <APP_NAME> --type zip --src-path deploy.zip`
-
-### Redeploy (re-despliegue)
-Solo repite el deploy del zip (con el zip actualizado):
-
-- `az webapp deploy --resource-group <RG> --name <APP_NAME> --type zip --src-path deploy.zip`
-
-Si te sale “Another deployment is in progress”, espera a que termine el anterior y reintenta.  
-Si Kudu falla por conexión, suele ser temporal; un redeploy después normalmente entra.
+- Las credenciales de Azure OpenAI **no se versionan** en GitHub.
+- Se inyectan por variables de entorno (local `.env` / Azure Portal Configuration).
+- El upload no escribe archivos a disco (evita dejar datasets subidos como artefactos del servidor).
 
 ---
 
-## Nota sobre carga de datasets (memoria vs disco)
+## Limitaciones conocidas
 
-- En el arranque, la app carga datasets desde `./data/`:
-  - Esto permite que el proyecto funcione “out-of-the-box” para demo/evaluación.
-
-- Al usar `POST /datasets/upload`:
-  - **No guarda archivos en `./data/`**
-  - Lee los archivos subidos y reemplaza `app.state.data` **en memoria**
-  - Es decir: la API empieza a trabajar con lo que subiste inmediatamente.
-  - Si reinicias el App Service, volverá a cargar `./data/` (porque memoria se pierde).
+- El upload reemplaza data en memoria; si el servicio reinicia, vuelve a `./data/`.
+- La consolidación depende de la estructura de `bank_offers.json` (lista de objetos).
+- Si faltan campos críticos en datasets, algunos escenarios pueden omitirse o devolver error validado.
 
 ---
 
-## Supuestos y validaciones
+## Diagrama rápido (texto)
 
-- Si falta información crítica en algún dataset:
-  - La API responde con error 400/422 según el caso.
-- Consolidación:
-  - Solo aplica si existen ofertas válidas para el cliente (según `bank_offers.json`).
-  - Si `bank_offers` no tiene estructura válida, se omite consolidación o se devuelve un error controlado (según implementación).
-
-### Estructura esperada de `bank_offers`
-Para evitar errores tipo `BankOffer(**o) argument after ** must be a mapping`, la app espera que cada oferta sea un objeto (dict).
-
----
-
-## Evidencia / demo
-
-### Demo (Azure)
-- URL: `https://desafio-bcp-app-ebb2hpbfawb4gxfq.canadacentral-01.azurewebsites.net/`
-
-### Generar informe para al menos 3 clientes
-1) `GET /customers` → obtienes `CU-001`, `CU-002`, `CU-003` (ejemplo)
-2) Para cada cliente:
-   - `GET /customers/{id}/scenarios/overview`
-   - `GET /customers/{id}/report`
-
-Si usas la UI:
-1) Seleccionas el cliente
-2) “Ver resumen de escenarios”
-3) “Generar informe”
-
----
-
-## Notas / troubleshooting
-
-### 1) Upload con FastAPI: falta `python-multipart`
-Si ves:
-- `Form data requires "python-multipart" to be installed`
-
-Solución:
-- Agregar `python-multipart` a `requirements.txt` e instalar.
-
-### 2) Azure OpenAI + Responses API requiere api-version preview
-Si ves:
-- `Azure OpenAI Responses API is enabled only for api-version 2025-03-01-preview and later`
-
-Solución:
-- Setear `AZURE_OPENAI_API_VERSION=2025-03-01-preview`
-
-### 3) Error 404 “Resource not found” en llamadas a OpenAI
-Causas típicas:
-- `AZURE_OPENAI_ENDPOINT` incorrecto (región/recurso equivocado)
-- `AZURE_OPENAI_DEPLOYMENT` no existe o está mal escrito
-- API version incorrecta
-- Se está usando el cliente equivocado (recomendado usar `AzureOpenAI` cuando apuntas a Azure)
-
-Checklist rápido:
-- Endpoint = `https://<recurso>.cognitiveservices.azure.com/`
-- Deployment = nombre exacto del deployment en Azure OpenAI
-- Api version = `2025-03-01-preview`
-
-### 4) App Service “failed to start within 10 mins”
-Revisar:
-- Startup Command (gunicorn/uvicorn)
-- Puerto (usar `0.0.0.0:8000` + `WEBSITES_PORT=8000`)
-- `SCM_DO_BUILD_DURING_DEPLOYMENT=1` para instalar dependencies
-
----
+Usuario
+→ UI (/)
+→ API FastAPI
+→ Data en memoria (startup: ./data)
+→ Motor de escenarios (minimum / optimized / consolidation)
+→ LLM (Azure OpenAI / AI Foundry)
+→ Respuesta (overview / report_text)
