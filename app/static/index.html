@@ -282,7 +282,10 @@
   <!-- 0. Carga de datasets -->
   <section class="card">
     <div class="card-title">
-      <h2>1. Carga de datasets</h2>
+      <h2>1. (Opcional) Carga de datasets</h2>
+      <p class="help">
+        Si no subes archivos, la app usa los datasets por defecto cargados desde <code>./data</code> al iniciar.
+      </p>
     </div>
     <p class="help">
       Sube CSV (loans, cards, payments_history, credit_score_history, customer_cashflow) y el JSON de bank_offers.
@@ -363,6 +366,11 @@
   const btnClearOverview = document.getElementById("btnClearOverview");
   const btnClearReport   = document.getElementById("btnClearReport");
 
+  btnUpload.disabled = true;
+  fileInput.addEventListener("change", () => {
+    btnUpload.disabled = !(fileInput.files && fileInput.files.length);
+  });
+
   function setStatus(msg, kind) {
     statusMsg.className = "status" + (kind ? ` ${kind}` : "");
     statusMsg.textContent = msg || "";
@@ -400,7 +408,7 @@
         customerSelect.appendChild(opt);
       }
 
-      setStatus(`Clientes cargados: ${customers.length}.`, "ok");
+      setStatus(`Clientes cargados: ${customers.length}. Puedes continuar sin subir archivos.`, "ok");
     } catch (err) {
       console.error(err);
       customerSelect.innerHTML = '<option value="">Error al cargar clientes</option>';
@@ -570,7 +578,7 @@
       await loadCustomers();
     } catch (err) {
       console.error(err);
-      setUploadStatus("Error al subir datos. Revisa la consola.", "bad");
+      setUploadStatus("Error al subir datos. Puedes continuar con datasets por defecto.", "warn");
     } finally {
       btnUpload.disabled = false;
     }

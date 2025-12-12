@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import List
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,11 +25,14 @@ import pandas as pd
 
 app = FastAPI(title="Asistente de Reestructuración Financiera")
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_DIR = BASE_DIR / "app" / "static"
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/")
 def home():
-    return FileResponse("app/static/index.html")
+    return FileResponse(STATIC_DIR / "index.html")
 
 app.add_middleware(
     CORSMiddleware,
