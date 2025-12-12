@@ -98,6 +98,7 @@ Devuelve el resumen comparativo de escenarios del cliente:
 - `consolidation` (consolidación, **si aplica** según `bank_offers`)
 
 #### Respuesta (ejemplo simplificado)
+```json
     {
       "customer_id": "CU-001",
       "scenarios": [
@@ -124,6 +125,7 @@ Devuelve el resumen comparativo de escenarios del cliente:
         }
       ]
     }
+```
 
 #### Errores comunes
 - `404` si el `customer_id` no existe en la data cargada.
@@ -137,11 +139,13 @@ Devuelve el resumen comparativo de escenarios del cliente:
 Genera y devuelve el informe explicativo usando Azure OpenAI (Foundry) y la data consolidada del cliente.
 
 #### Respuesta (ejemplo)
+```json
     {
       "customer_id": "CU-001",
       "language": "es",
       "report_text": "..."
     }
+```
 
 #### Notas
 - Si las variables de entorno de Azure OpenAI no están configuradas, este endpoint puede:
