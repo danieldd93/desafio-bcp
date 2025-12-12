@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Asistente de Reestructuración Financiera</title>
+  <style>
+    :root{
+      /* Paleta clara sobria */
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --surface-2: #fbfcfe;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e5e7eb;
+
+      /* Un solo acento */
+      --accent: #2563eb;        /* azul */
+      --accent-ink: #ffffff;
+
+      /* Estados */
+      --ok: #16a34a;
+      --warn: #d97706;
+      --bad: #dc2626;
+
+      --shadow: 0 10px 30px rgba(2, 6, 23, 0.06);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    body{
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255,255,255,.85);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-inner{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .brand{
+      display:flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .brand h1{
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: .2px;
+      font-weight: 700;
+    }
+    .brand p{
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    main{
+      max-width: 1100px;
+      margin: 22px auto 48px;
+      padding: 0 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .card{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-title{
+      display:flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .card h2{
+      margin: 0;
+      font-size: 15px;
+      font-weight: 750;
+    }
+    .help{
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 10px;
+      line-height: 1.35;
+    }
+
+    label{
+      display:block;
+      margin: 10px 0 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .row{
+      display:flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    select, input[type="file"]{
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+    }
+    select:focus, input[type="file"]:focus{
+      border-color: rgba(37,99,235,.45);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+
+    .btn{
+      appearance: none;
+      border: 1px solid transparent;
+      background: var(--accent);
+      color: var(--accent-ink);
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .02s ease, opacity .15s ease, background .15s ease;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn:disabled{ opacity:.55; cursor: not-allowed; }
+
+    .btn.secondary{
+      background: #ffffff;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn.secondary:hover{
+      background: #f8fafc;
+    }
+
+    .status{
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status.ok{ color: var(--ok); }
+    .status.warn{ color: var(--warn); }
+    .status.bad{ color: var(--bad); }
+
+    /* Pills sobrias */
+    .pill{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      color: #111827;
+      white-space: nowrap;
+    }
+    .pill .dot{
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #94a3b8;
+    }
+    .pill.optimized_plan .dot{ background: var(--ok); }
+    .pill.consolidation .dot{ background: var(--accent); }
+    .pill.minimum_payment .dot{ background: var(--bad); }
+
+    table{
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      font-size: 13px;
+    }
+    thead th{
+      text-align: left;
+      padding: 10px 10px;
+      background: #f8fafc;
+      color: #334155;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td{
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tbody tr:last-child td{ border-bottom: none; }
+    tbody tr:hover td{ background: #fafcff; }
+
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #111827;
+      white-space: nowrap;
+    }
+    .tag-ok{ border-color: rgba(22,163,74,.35); color: var(--ok); background: rgba(22,163,74,.06); }
+    .tag-warn{ border-color: rgba(217,119,6,.35); color: var(--warn); background: rgba(217,119,6,.06); }
+    .tag-bad{ border-color: rgba(220,38,38,.35); color: var(--bad); background: rgba(220,38,38,.06); }
+
+    #report_text{
+      margin: 0;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #ffffff;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-size: 13px;
+      color: #0f172a;
+      min-height: 64px;
+    }
+
+    .divider{
+      height: 1px;
+      background: var(--border);
+      margin: 12px 0 0;
+    }
+
+    @media (max-width: 720px){
+      .header-inner{ align-items: flex-start; }
+      table{ font-size: 12px; }
+      thead{ display:none; }
+      tbody tr{ display:block; border-bottom: 1px solid var(--border); }
+      tbody td{ display:flex; justify-content: space-between; gap: 12px; }
+      tbody td::before{
+        content: attr(data-label);
+        color: var(--muted);
+        font-weight: 700;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <h1>Asistente de Reestructuración Financiera</h1>
+      <p>Sube datasets, compara escenarios y genera informe.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- 0. Carga de datasets -->
+  <section class="card">
+    <div class="card-title">
+      <h2>1. Carga de datasets</h2>
+    </div>
+    <p class="help">
+      Sube CSV (loans, cards, payments_history, credit_score_history, customer_cashflow) y el JSON de bank_offers.
+    </p>
+
+    <label for="dataFiles">Archivos</label>
+    <div class="row">
+      <input id="dataFiles" type="file" accept=".csv,.json" multiple />
+      <button class="btn" id="btnUpload">Subir y procesar</button>
+    </div>
+    <div class="status" id="uploadStatus"></div>
+  </section>
+
+  <!-- 1. Selección de cliente -->
+  <section class="card">
+    <div class="card-title">
+      <h2>2. Selección de cliente</h2>
+    </div>
+
+    <label for="customerSelect">Cliente</label>
+    <div class="row">
+      <select id="customerSelect">
+        <option value="">Cargando clientes...</option>
+      </select>
+    </div>
+    <div class="status" id="statusMsg"></div>
+  </section>
+
+  <!-- 2. Comparación -->
+  <section class="card">
+    <div class="card-title">
+      <h2>3. Comparación de escenarios</h2>
+    </div>
+    <p class="help">
+      Se muestran: pago mínimo, plan optimizado y consolidación (si aplica).
+    </p>
+    <div class="row">
+      <button class="btn" id="btnOverview">Ver resumen</button>
+      <button class="btn secondary" id="btnClearOverview" type="button">Limpiar</button>
+    </div>
+    <div id="overviewContainer" style="margin-top: 12px;"></div>
+  </section>
+
+  <!-- 3. Informe -->
+  <section class="card">
+    <div class="card-title">
+      <h2>4. Informe explicativo</h2>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="btnReport">Generar informe</button>
+      <button class="btn secondary" id="btnClearReport" type="button">Limpiar</button>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <pre id="report_text"></pre>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  const BASE_URL = "";
+
+  const customerSelect    = document.getElementById("customerSelect");
+  const statusMsg         = document.getElementById("statusMsg");
+  const overviewContainer = document.getElementById("overviewContainer");
+  const reportText        = document.getElementById("report_text");
+  const btnOverview       = document.getElementById("btnOverview");
+  const btnReport         = document.getElementById("btnReport");
+
+  // carga archivos
+  const fileInput    = document.getElementById("dataFiles");
+  const btnUpload    = document.getElementById("btnUpload");
+  const uploadStatus = document.getElementById("uploadStatus");
+
+  // extras UI
+  const btnClearOverview = document.getElementById("btnClearOverview");
+  const btnClearReport   = document.getElementById("btnClearReport");
+
+  function setStatus(msg, kind) {
+    statusMsg.className = "status" + (kind ? ` ${kind}` : "");
+    statusMsg.textContent = msg || "";
+  }
+  function setUploadStatus(msg, kind) {
+    uploadStatus.className = "status" + (kind ? ` ${kind}` : "");
+    uploadStatus.textContent = msg || "";
+  }
+
+  async function fetchJSON(path) {
+    const url = BASE_URL + path;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Error ${res.status}: ${text}`);
+    }
+    return res.json();
+  }
+
+  async function loadCustomers() {
+    try {
+      setStatus("Cargando clientes...");
+      const customers = await fetchJSON("/customers");
+      customerSelect.innerHTML = "";
+
+      if (!customers.length) {
+        customerSelect.innerHTML = '<option value="">Sin clientes</option>';
+        setStatus("No se encontraron clientes en los datos.", "warn");
+        return;
+      }
+
+      for (const id of customers) {
+        const opt = document.createElement("option");
+        opt.value = opt.textContent = id;
+        customerSelect.appendChild(opt);
+      }
+
+      setStatus(`Clientes cargados: ${customers.length}.`, "ok");
+    } catch (err) {
+      console.error(err);
+      customerSelect.innerHTML = '<option value="">Error al cargar clientes</option>';
+      setStatus("No se pudieron cargar los clientes. Revisa la consola.", "bad");
+    }
+  }
+
+  function formatScenarioType(type) {
+    switch (type) {
+      case "minimum_payment": return "Pago mínimo";
+      case "optimized_plan": return "Plan optimizado";
+      case "consolidation": return "Consolidación";
+      default: return type;
+    }
+  }
+
+  function scenarioPill(type) {
+    const label = formatScenarioType(type);
+    const cls = type || "minimum_payment";
+    return `<span class="pill ${cls}"><span class="dot"></span>${label}</span>`;
+  }
+
+  function renderOverview(overview) {
+    if (!overview || !overview.scenarios || !overview.scenarios.length) {
+      overviewContainer.innerHTML = "<p class='help'>No hay información de escenarios para este cliente.</p>";
+      return;
+    }
+
+    const rows = overview.scenarios.map(s => {
+      const months = s.total_months;
+      const years = (months / 12).toFixed(1);
+      const totalInterest = s.total_interest_paid?.toFixed(2) ?? "-";
+      const savings = s.interest_savings_vs_minimum?.toFixed(2) ?? "-";
+      const monthsSaved = s.months_saved_vs_minimum ?? "-";
+
+      let tagClass = "tag-ok";
+      let tagText = "Mejora vs pago mínimo";
+      if (s.scenario_type === "minimum_payment") { tagClass = "tag-bad"; tagText = "Referencia"; }
+      else if ((s.interest_savings_vs_minimum ?? 0) <= 0) { tagClass = "tag-warn"; tagText = "Sin mejora clara"; }
+
+      return `
+        <tr>
+          <td data-label="Escenario">${scenarioPill(s.scenario_type)}</td>
+          <td data-label="Duración">${months} meses <span style="color:var(--muted)">(${years} años)</span></td>
+          <td data-label="Intereses">S/ ${totalInterest}</td>
+          <td data-label="Ahorro">S/ ${savings}</td>
+          <td data-label="Meses ahorrados">${monthsSaved}</td>
+          <td data-label="Comentario"><span class="tag ${tagClass}">${tagText}</span></td>
+        </tr>
+      `;
+    }).join("");
+
+    overviewContainer.innerHTML = `
+      <div class="help" style="margin:0 0 8px;">
+        Resumen para el cliente <strong>${overview.customer_id}</strong>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Escenario</th>
+            <th>Duración total</th>
+            <th>Intereses totales</th>
+            <th>Ahorro vs mínimo</th>
+            <th>Meses ahorrados</th>
+            <th>Comentario</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  async function handleOverviewClick() {
+    const customerId = customerSelect.value;
+    if (!customerId) {
+      alert("Selecciona un cliente primero.");
+      return;
+    }
+    btnOverview.disabled = true;
+    setStatus("Consultando escenarios...");
+    overviewContainer.innerHTML = "";
+    try {
+      const overview = await fetchJSON(`/customers/${encodeURIComponent(customerId)}/scenarios/overview`);
+      renderOverview(overview);
+      setStatus("Escenarios cargados correctamente.", "ok");
+    } catch (err) {
+      console.error(err);
+      overviewContainer.innerHTML = "<p class='help'>Error al obtener escenarios. Revisa la consola.</p>";
+      setStatus("Error al consultar escenarios.", "bad");
+    } finally {
+      btnOverview.disabled = false;
+    }
+  }
+
+  async function handleReportClick() {
+    const customerId = customerSelect.value;
+    if (!customerId) {
+      alert("Selecciona un cliente primero.");
+      return;
+    }
+    btnReport.disabled = true;
+    setStatus("Generando informe...");
+    reportText.textContent = "";
+    try {
+      const report = await fetchJSON(`/customers/${encodeURIComponent(customerId)}/report`);
+      reportText.textContent = report.report_text || "(El backend no devolvió texto.)";
+      setStatus("Informe generado correctamente.", "ok");
+    } catch (err) {
+      console.error(err);
+      reportText.textContent = "Error al generar informe. Revisa la consola del navegador.";
+      setStatus("Error al generar informe.", "bad");
+    } finally {
+      btnReport.disabled = false;
+    }
+  }
+
+  async function handleUploadClick() {
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) {
+      alert("Selecciona los archivos CSV/JSON primero.");
+      return;
+    }
+
+    const requiredKeys = [
+      "loans",
+      "cards",
+      "payments_history",
+      "credit_score_history",
+      "customer_cashflow",
+      "bank_offers",
+    ];
+
+    const fileMap = {};
+    for (const f of files) {
+      const lower = f.name.toLowerCase();
+      for (const key of requiredKeys) {
+        if (lower.includes(key)) fileMap[key] = f;
+      }
+    }
+
+    const missing = requiredKeys.filter(k => !fileMap[k]);
+    if (missing.length) {
+      setUploadStatus("Faltan archivos: " + missing.join(", "), "warn");
+      return;
+    }
+
+    const formData = new FormData();
+    for (const key of requiredKeys) formData.append(key, fileMap[key]);
+
+    btnUpload.disabled = true;
+    setUploadStatus("Subiendo y procesando...", "");
+    setStatus("");
+
+    try {
+      const res = await fetch(BASE_URL + "/datasets/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error ${res.status}: ${text}`);
+      }
+
+      const json = await res.json();
+      const rowsInfo = json.rows_per_dataset
+        ? Object.entries(json.rows_per_dataset).map(([k, v]) => `${k}: ${v}`).join(" | ")
+        : "";
+
+      setUploadStatus("Datos cargados correctamente. " + rowsInfo, "ok");
+      await loadCustomers();
+    } catch (err) {
+      console.error(err);
+      setUploadStatus("Error al subir datos. Revisa la consola.", "bad");
+    } finally {
+      btnUpload.disabled = false;
+    }
+  }
+
+  btnOverview.addEventListener("click", handleOverviewClick);
+  btnReport.addEventListener("click", handleReportClick);
+  btnUpload.addEventListener("click", handleUploadClick);
+
+  btnClearOverview.addEventListener("click", () => { overviewContainer.innerHTML = ""; });
+  btnClearReport.addEventListener("click", () => { reportText.textContent = ""; });
+
+  document.addEventListener("DOMContentLoaded", loadCustomers);
+</script>
+</body>
+</html>
