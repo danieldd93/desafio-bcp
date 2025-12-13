@@ -49,7 +49,7 @@ def _build_report_prompt(
     """
     Construye el prompt para el modelo generativo usando la info del portafolio
     y las métricas de los escenarios.
-    TODO el texto final lo escribe el LLM.
+    Todo el texto final lo escribe el LLM.
     """
     min_s = _find_scenario(overview, "minimum_payment")
     opt_s = _find_scenario(overview, "optimized_plan")
@@ -144,7 +144,7 @@ def _build_report_prompt(
 
         {best_block}
 
-        FORMATO DE SALIDA (MUY IMPORTANTE):
+        FORMATO DE SALIDA:
         - Escribe la respuesta en ESPAÑOL.
         - Usa **Markdown simple** con este esquema:
 
@@ -197,7 +197,7 @@ def generate_explanatory_report(
     overview: ScenarioComparisonResult,
 ) -> GeneratedReport:
     """
-    Genera un informe explicativo 100% con IA generativa (Azure OpenAI),
+    Genera un informe explicativo,
     usando los datos del portafolio y los resultados de los escenarios.
     """
     prompt = _build_report_prompt(portfolio, overview)

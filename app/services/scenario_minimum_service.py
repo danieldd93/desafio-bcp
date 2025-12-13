@@ -20,12 +20,12 @@ def _simulate_card_minimum(
     max_months: int = 600,
 ) -> DebtAmortizationSummary:
     """
-    Simula una tarjeta pagando siempre el mínimo.
+    Simula una tarjeta pagando siempre el minimo.
     Regla simple:
-      - pago_mínimo = balance * (min_payment_pct / 100)
-      - interés_mes = balance * tasa_mensual
-      - para evitar ciclos infinitos, si el pago mínimo
-        no cubre el interés, forzamos pago = interés + 1
+      - pago_minimo = balance * (min_payment_pct / 100)
+      - interes_mes = balance * tasa_mensual
+      - para evitar ciclos infinitos, si el pago minimo
+        no cubre el interes, forzamos pago = interes + 1
     """
 
     starting_balance = balance
@@ -68,7 +68,7 @@ def _simulate_loan_standard(
     """
     Para el escenario 'pago mínimo' asumimos que el préstamo
     sigue su calendario normal de amortización (cuota fija).
-    Usamos la fórmula clásica de anualidad.
+    Usamos la fórmula de anualidad.
     """
 
     starting_balance = principal

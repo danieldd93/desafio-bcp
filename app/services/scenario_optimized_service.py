@@ -18,7 +18,7 @@ def _loan_monthly_payment(principal: float, annual_rate_pct: float, term_months:
     n = term_months
 
     if n <= 0:
-        return principal  # caso raro: si el plazo es 0, pagar todo
+        return principal
 
     if r == 0:
         return principal / n
@@ -38,7 +38,6 @@ def _card_minimum_payment(balance: float, annual_rate_pct: float, min_payment_pc
     raw_min = balance * (min_payment_pct / 100.0)
     payment = max(raw_min, interest + 1.0, 10.0)
 
-    # no pagar más de lo que se debe + intereses de este mes
     return min(payment, balance + interest)
 
 
@@ -50,14 +49,12 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
       - Cada mes el cliente dispone de `available_cashflow` para pagar deudas.
       - Primero paga los mínimos de todos los productos (loans + cards).
       - Con lo que sobra, ataca la deuda con tasa más alta (y en caso de empate,
-        podrías priorizar las que estén en mora; aquí lo hacemos por tasa).
+        podrías priorizar las que estén en mora, aquí lo hacemos por tasa).
       - Repite hasta que todas las deudas se cancelan o se llega a un máximo de meses.
     """
 
     available = portfolio.cashflow.available_cashflow
     if available <= 0:
-        # Si no hay flujo disponible, no hay mucho que optimizar…
-        # devolvemos algo trivial
         return ScenarioSummary(
             customer_id=portfolio.customer_id,
             scenario_type="optimized_plan",
@@ -68,7 +65,6 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
         )
 
     # --------- Estado inicial por deuda ---------
-    # Creamos una estructura interna genérica para loans y cards.
     debts_state = []
 
     # Loans
@@ -94,8 +90,6 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
 
     # Cards
     for card in portfolio.cards:
-        # El mínimo de tarjeta se recalcula cada mes según el saldo,
-        # así que aquí solo dejamos None y lo calculamos en el loop.
         debts_state.append(
             {
                 "product_id": card.card_id,
@@ -111,19 +105,17 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
         )
 
     # --------- Simulación mes a mes ---------
-    max_months = 600  # tope de seguridad para no irnos al infinito
+    max_months = 600
     month = 0
 
     while month < max_months:
-        # Verificamos si ya no queda deuda
         if all(d["balance"] <= 0.01 for d in debts_state):
             break
 
         month += 1
 
-        # 1) Calcular pagos mínimos y aplicar intereses
         min_total = 0.0
-        per_debt_min: List[Tuple[int, float, float]] = []  # (idx, interest, min_payment)
+        per_debt_min: List[Tuple[int, float, float]] = []
 
         for idx, d in enumerate(debts_state):
             balance = d["balance"]
@@ -136,9 +128,8 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
 
             if d["product_type"] == "loan":
                 min_payment = d["min_payment"]
-                # no pagar más de balance + intereses
                 min_payment = min(min_payment, balance + interest)
-            else:  # card
+            else:
                 min_payment = _card_minimum_payment(
                     balance=balance,
                     annual_rate_pct=d["rate_annual"],
@@ -148,13 +139,11 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
             per_debt_min.append((idx, interest, min_payment))
             min_total += min_payment
 
-        # 2) Si la suma de mínimos supera el cash disponible, escalamos proporcionalmente
         cash_available = available
         scale_factor = 1.0
         if min_total > cash_available and min_total > 0:
             scale_factor = cash_available / min_total
 
-        # 3) Aplicar pagos mínimos (escalados si es necesario)
         cash_available -= min_total * scale_factor
 
         for idx, interest, min_payment in per_debt_min:
@@ -167,7 +156,6 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
             if effective_payment <= 0:
                 continue
 
-            # No pagar más de balance + intereses
             max_this_month = d["balance"] + interest
             if effective_payment > max_this_month:
                 effective_payment = max_this_month
@@ -181,11 +169,8 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
             d["total_interest"] += interest if effective_payment > 0 else 0.0
             d["months"] += 1
 
-        # 4) Con el sobrante, atacar la deuda con tasa más alta
-        # (si hay varias, tomamos la primera con esa tasa)
         while cash_available > 0.01 and any(d["balance"] > 0.01 for d in debts_state):
-            # ordenamos por tasa anual descendente (más alto primero)
-            # podrías agregar un bonus por mora si quieres
+
             debts_sorted = sorted(
                 [d for d in debts_state if d["balance"] > 0.01],
                 key=lambda x: x["rate_annual"],
@@ -196,7 +181,7 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
 
             target["balance"] -= extra
             target["total_paid"] += extra
-            # el extra se va 100% a capital (ya calculamos intereses del mes)
+
             cash_available -= extra
 
     # --------- Construir resumen final ---------
@@ -204,7 +189,6 @@ def simulate_optimized_plan(portfolio: CustomerPortfolio) -> ScenarioSummary:
 
     for d in debts_state:
         if d["total_paid"] == 0 and d["balance"] <= 0.01:
-            # deuda que nunca se pagó porque ya estaba en 0, la omitimos
             continue
 
         debt_summaries.append(

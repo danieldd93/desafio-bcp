@@ -17,14 +17,12 @@ def compute_scenarios_overview(app, customer_id: str) -> ScenarioComparisonResul
     data = app.state.data
     portfolio = build_customer_portfolio(app, customer_id)
 
-    # 1) Escenario baseline: pago mínimo
     min_s = simulate_minimum_payment_scenario(portfolio)
     baseline_interest = min_s.total_interest_paid
     baseline_months = min_s.total_months
 
     scenarios_savings = []
 
-    # Helper para armar cada item
     def _build_savings_item(scenario) -> ScenarioSavings:
         if scenario.scenario_type == "minimum_payment":
             interest_savings = 0.0
@@ -42,18 +40,14 @@ def compute_scenarios_overview(app, customer_id: str) -> ScenarioComparisonResul
             months_saved_vs_minimum=months_saved,
         )
 
-    # Agregamos mínimo (baseline)
     scenarios_savings.append(_build_savings_item(min_s))
 
-    # 2) Escenario optimizado
     opt_s = simulate_optimized_plan(portfolio)
     scenarios_savings.append(_build_savings_item(opt_s))
 
-    # 3) Escenario consolidación
     cons_s = simulate_consolidation_scenario(portfolio, data["bank_offers"])
     scenarios_savings.append(_build_savings_item(cons_s))
 
-    # Resultado global
     return ScenarioComparisonResult(
         customer_id=customer_id,
         baseline_type="minimum_payment",

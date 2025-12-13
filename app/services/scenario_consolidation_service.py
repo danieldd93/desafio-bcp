@@ -10,7 +10,7 @@ def _monthly_rate(annual_rate_pct: float) -> float:
 
 def _loan_monthly_payment(principal: float, annual_rate_pct: float, term_months: int) -> float:
     """
-    Cuota fija estándar de un préstamo (anualidad).
+    Cuota fija estándar de un préstamo.
     """
     r = _monthly_rate(annual_rate_pct)
     n = term_months
@@ -68,7 +68,6 @@ def simulate_consolidation_scenario(
     best_summary: Optional[ScenarioSummary] = None
 
     for offer in offers:
-        # 1) Determinar qué deudas son elegibles para esta oferta
         eligible_balance = 0.0
         max_days_past_due = 0
 
@@ -84,15 +83,12 @@ def simulate_consolidation_scenario(
                 eligible_balance += card.balance
                 max_days_past_due = max(max_days_past_due, card.days_past_due)
 
-        # Si no hay nada que consolidar con esta oferta, seguimos
         if eligible_balance <= 0:
             continue
 
-        # 2) Respetar máximo saldo consolidado
         if eligible_balance > offer.max_consolidated_balance:
             continue
 
-        # 3) Verificar condiciones del texto (simplificadas)
         cond = offer.conditions.lower()
 
         # Condición de score
@@ -105,7 +101,6 @@ def simulate_consolidation_scenario(
             if max_days_past_due > 30:
                 continue
 
-        # 4) Calcular la cuota del nuevo crédito consolidado
         n = offer.max_term_months
         monthly_payment = _loan_monthly_payment(
             principal=eligible_balance,
@@ -113,14 +108,12 @@ def simulate_consolidation_scenario(
             term_months=n,
         )
 
-        # Si la cuota no cabe en el flujo de caja, descartamos la oferta
         if monthly_payment > available_cf:
             continue
 
         total_paid = monthly_payment * n
         total_interest = total_paid - eligible_balance
 
-        # 5) Crear el resumen para esta oferta
         debt_summary = DebtAmortizationSummary(
             product_id=offer.offer_id,
             product_type="loan",
@@ -139,7 +132,6 @@ def simulate_consolidation_scenario(
             debts=[debt_summary],
         )
 
-        # 6) Elegir la mejor oferta según intereses (y luego plazo)
         if best_summary is None:
             best_summary = scenario_summary
         else:
@@ -151,7 +143,6 @@ def simulate_consolidation_scenario(
             ):
                 best_summary = scenario_summary
 
-    # Si ninguna oferta fue viable, devolvemos un escenario vacío
     if best_summary is None:
         return ScenarioSummary(
             customer_id=portfolio.customer_id,

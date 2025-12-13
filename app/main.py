@@ -206,16 +206,14 @@ def get_scenarios_overview(customer_id: str):
 )
 def get_customer_report(customer_id: str):
     """
-    Genera un informe explicativo usando IA generativa (Azure OpenAI)
+    Genera un informe explicativo usando IA generativa
     a partir del portafolio del cliente y el overview de escenarios.
     """
-    # 1) Portafolio del cliente
+
     portfolio = build_customer_portfolio(app, customer_id)
 
-    # 2) Overview de escenarios (mínimo, optimizado, consolidación)
     overview = compute_scenarios_overview(app, customer_id)
 
-    # 3) Informe explicativo con IA generativa
     report = generate_explanatory_report(portfolio, overview)
 
     return report

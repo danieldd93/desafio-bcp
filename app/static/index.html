@@ -6,7 +6,6 @@
   <title>Asistente de Reestructuración Financiera</title>
   <style>
     :root{
-      /* Paleta clara sobria */
       --bg: #f6f7fb;
       --surface: #ffffff;
       --surface-2: #fbfcfe;
@@ -14,11 +13,9 @@
       --muted: #64748b;
       --border: #e5e7eb;
 
-      /* Un solo acento */
-      --accent: #2563eb;        /* azul */
+      --accent: #2563eb;
       --accent-ink: #ffffff;
 
-      /* Estados */
       --ok: #16a34a;
       --warn: #d97706;
       --bad: #dc2626;
@@ -279,7 +276,6 @@
 
 <main>
 
-  <!-- 0. Carga de datasets -->
   <section class="card">
     <div class="card-title">
       <h2>1. (Opcional) Carga de datasets</h2>
@@ -299,7 +295,6 @@
     <div class="status" id="uploadStatus"></div>
   </section>
 
-  <!-- 1. Selección de cliente -->
   <section class="card">
     <div class="card-title">
       <h2>2. Selección de cliente</h2>
@@ -314,7 +309,6 @@
     <div class="status" id="statusMsg"></div>
   </section>
 
-  <!-- 2. Comparación -->
   <section class="card">
     <div class="card-title">
       <h2>3. Comparación de escenarios</h2>
@@ -329,7 +323,6 @@
     <div id="overviewContainer" style="margin-top: 12px;"></div>
   </section>
 
-  <!-- 3. Informe -->
   <section class="card">
     <div class="card-title">
       <h2>4. Informe explicativo</h2>
@@ -361,12 +354,10 @@
 
   let lastReport = null;
 
-  // carga archivos
   const fileInput    = document.getElementById("dataFiles");
   const btnUpload    = document.getElementById("btnUpload");
   const uploadStatus = document.getElementById("uploadStatus");
 
-  // extras UI
   const btnClearOverview = document.getElementById("btnClearOverview");
   const btnClearReport   = document.getElementById("btnClearReport");
 
@@ -638,7 +629,6 @@ ${lastReport.report_text}
 
       setUploadStatus("Datos cargados correctamente. " + rowsInfo, "ok");
 
-      // Limpia estado de report descargable cuando se suben nuevos datos
       reportText.textContent = "";
       btnDownloadReport.disabled = true;
       lastReport = null;
