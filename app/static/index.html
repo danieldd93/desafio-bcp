@@ -337,6 +337,7 @@
 
     <div class="row">
       <button class="btn" id="btnReport">Generar informe</button>
+      <button class="btn secondary" id="btnDownloadReport" type="button" disabled>Descargar informe</button>
       <button class="btn secondary" id="btnClearReport" type="button">Limpiar</button>
     </div>
 
@@ -356,6 +357,9 @@
   const reportText        = document.getElementById("report_text");
   const btnOverview       = document.getElementById("btnOverview");
   const btnReport         = document.getElementById("btnReport");
+  const btnDownloadReport = document.getElementById("btnDownloadReport");
+
+  let lastReport = null;
 
   // carga archivos
   const fileInput    = document.getElementById("dataFiles");
@@ -503,6 +507,33 @@
     }
   }
 
+  function safeFileName(s) {
+    return String(s || "")
+      .replace(/[^\w\-]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
+  function nowStamp() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  }
+
+  function downloadTextFile(filename, content) {
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
   async function handleReportClick() {
     const customerId = customerSelect.value;
     if (!customerId) {
@@ -510,20 +541,51 @@
       return;
     }
     btnReport.disabled = true;
+    btnDownloadReport.disabled = true;
+    lastReport = null;
+
     setStatus("Generando informe...");
     reportText.textContent = "";
     try {
       const report = await fetchJSON(`/customers/${encodeURIComponent(customerId)}/report`);
       reportText.textContent = report.report_text || "(El backend no devolvió texto.)";
       setStatus("Informe generado correctamente.", "ok");
+
+      lastReport = report;
+      btnDownloadReport.disabled = !(report && report.report_text);
     } catch (err) {
       console.error(err);
       reportText.textContent = "Error al generar informe. Revisa la consola del navegador.";
       setStatus("Error al generar informe.", "bad");
+      btnDownloadReport.disabled = true;
+      lastReport = null;
     } finally {
       btnReport.disabled = false;
     }
   }
+
+  btnDownloadReport.addEventListener("click", () => {
+    if (!lastReport || !lastReport.report_text) {
+      alert("Primero genera un informe.");
+      return;
+    }
+
+    const customerId = safeFileName(lastReport.customer_id || customerSelect.value || "cliente");
+    const ts = nowStamp();
+
+    const content =
+`# Informe IA — ${customerId}
+
+Generado: ${new Date().toISOString()}
+Fuente: UI (GET /customers/{customer_id}/report)
+
+---
+
+${lastReport.report_text}
+`;
+
+    downloadTextFile(`report_${customerId}_${ts}.md`, content);
+  });
 
   async function handleUploadClick() {
     const files = Array.from(fileInput.files || []);
@@ -575,6 +637,12 @@
         : "";
 
       setUploadStatus("Datos cargados correctamente. " + rowsInfo, "ok");
+
+      // Limpia estado de report descargable cuando se suben nuevos datos
+      reportText.textContent = "";
+      btnDownloadReport.disabled = true;
+      lastReport = null;
+
       await loadCustomers();
     } catch (err) {
       console.error(err);
@@ -589,7 +657,11 @@
   btnUpload.addEventListener("click", handleUploadClick);
 
   btnClearOverview.addEventListener("click", () => { overviewContainer.innerHTML = ""; });
-  btnClearReport.addEventListener("click", () => { reportText.textContent = ""; });
+  btnClearReport.addEventListener("click", () => {
+    reportText.textContent = "";
+    btnDownloadReport.disabled = true;
+    lastReport = null;
+  });
 
   document.addEventListener("DOMContentLoaded", loadCustomers);
 </script>
